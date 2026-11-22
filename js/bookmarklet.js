@@ -20,7 +20,7 @@
     var RATE_RE = /(\d{1,3}\.\d{1,2})\s*%/;
     var RATE_RE_G = /\d{1,3}\.\d{1,2}\s*%/g;
     var NUM_RE = /^\d{1,3}\.\d{2}$/;
-    var DIFF_RE = /(^|[^a-z])(master|mas|mst|extreme|ext|advanced|adv|basic|bas|bsc)([^a-z]|$)/i;
+    var DIFF_RE = /(^|[^a-z])(master|mas|mst|extreme|ext|advanced|advance|adv|basic|bas|bsc)([^a-z]|$)/i;
     var RANK_RE = /^(SS|S|A|B|C|D|E|FC|EXC|EXCELLENT|FULL ?COMBO|CLEAR|FAILED)$/i;
     var LABEL_RE = /^(曲名|楽曲|難易度|レベル|達成率|スキル|スキル値|ランク|HOT|OTHER|No\.?|\d+)$/i;
     var DIFFS = ["BAS", "ADV", "EXT", "MAS"];
@@ -168,7 +168,23 @@
       });
       return c.innerHTML.replace(/\s+/g, " ").slice(0, max);
     }
+    var GTYPE = (function () {
+      var as = document.querySelectorAll("a[href*='gtype=']");
+      for (var i = 0; i < as.length; i++) {
+        var m = as[i].getAttribute("href").match(/[?&]gtype=([a-z]+)/i);
+        if (m && /^dm$/i.test(m[1])) return m[1];
+      }
+      return "dm";
+    })();
+    function withG(url) {
+      try {
+        var u = new URL(url, location.href);
+        if (u.origin === location.origin && !u.searchParams.get("gtype")) u.searchParams.set("gtype", GTYPE);
+        return u.href;
+      } catch (e) { return url; }
+    }
     function fetchDoc(url) {
+      url = withG(url);
       return fetch(url, { credentials: "same-origin" }).then(function (res) {
         if (!res.ok) throw new Error("HTTP " + res.status + " " + url);
         var ct = res.headers.get("content-type") || "";
@@ -197,9 +213,9 @@
     function categoryUrls(sel) {
       var here = new URL(location.href);
       var cur = sel.value;
-      var opts2 = [].slice.call(sel.options).map(function (o) { return { value: o.value, label: txt(o) }; });
+      var opts2 = [].slice.call(sel.options).filter(function (o) { return !o.disabled && o.hasAttribute("value"); }).map(function (o) { return { value: o.value, label: txt(o) }; });
       var form = sel.form;
-      if (form && sel.name && (form.method || "get").toLowerCase() === "get") {
+      if (form && sel.name) {
         return opts2.map(function (o) {
           var u = new URL(form.getAttribute("action") || location.href, location.href);
           [].slice.call(form.elements).forEach(function (e) { if (e.name && e !== sel && e.type !== "submit") u.searchParams.set(e.name, e.value); });
@@ -259,7 +275,8 @@
             if (!hd[c]) continue;
             var t = txt(cells[c]);
             var hasImg = cells[c].querySelector("img");
-            var empty = !t.replace(/[\s\-−–―ー_]/g, "") && !hasImg;
+            var iconCls = /(^|\s)icon-[a-z0-9]/i.test(cells[c].className || "");
+            var empty = !t.replace(/[\s\-−–―ー_＿]/g, "") && !hasImg && !iconCls;
             if (!empty) played.push(hd[c]);
             var rm = t.match(RATE_RE);
             if (rm) rates[hd[c]] = parseFloat(rm[1]);
