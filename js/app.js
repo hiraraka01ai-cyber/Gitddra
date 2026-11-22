@@ -129,20 +129,49 @@
     entries = [];
   }
 
+  const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+  // 曲名（途中で切れた名前も可）から既存の譜面を探す。複数あればスキルが一番高い譜面
+  function findSong(name) {
+    const n = norm(name).replace(/[…．.]+$/, "");
+    let hits = entries.filter((x) => norm(x.song) === n);
+    if (!hits.length && n.length >= 3) {
+      const pre = entries.filter((x) => norm(x.song).startsWith(n));
+      if (new Set(pre.map((x) => norm(x.song))).size === 1) hits = pre;
+    }
+    if (!hits.length) return null;
+    return hits.reduce((b, x) => (S.chartSkill(x.level, x.rate) > S.chartSkill(b.level, b.rate) ? x : b));
+  }
+
   function addEntries(list, replace) {
     leaveSample();
     if (replace) entries = [];
+    const result = { added: 0, updated: 0, missed: [] };
     for (const e of list) {
+      if (e.meta) {
+        const hit = findSong(e.song);
+        if (!hit) { result.missed.push(e.song); continue; }
+        if (e.diff) hit.diff = e.diff;
+        if (e.tag) hit.tag = e.tag;
+        if (e.hot != null) hit.hot = e.hot;
+        result.updated++;
+        continue;
+      }
       // 同じ曲・同じ譜面は上書き（高い方を残す）
       const dup = entries.find((x) => x.song.trim().toLowerCase() === e.song.trim().toLowerCase() && x.diff === e.diff);
       if (dup) {
         dup.level = e.level;
         dup.rate = Math.max(Number(dup.rate) || 0, Number(e.rate) || 0);
         dup.hot = e.hot;
-      } else entries.push({ id: nextId++, song: e.song, diff: e.diff, level: Number(e.level), rate: Number(e.rate), hot: !!e.hot });
+        if (e.tag) dup.tag = e.tag;
+        result.updated++;
+      } else {
+        entries.push({ id: nextId++, song: e.song, diff: e.diff, level: Number(e.level), rate: Number(e.rate), hot: !!e.hot, ...(e.tag ? { tag: e.tag } : {}) });
+        result.added++;
+      }
     }
     save();
     render();
+    return result;
   }
 
   function toast(msg) {
@@ -321,7 +350,7 @@
     $("#goalBody").innerHTML = rows.map((r) => `
       <tr data-id="${r.id}" class="${r.counted ? "" : "dim"}">
         <td class="num muted g-no">${r.no}</td>
-        <td class="song g-song" title="${esc(r.song)}">${esc(r.song)}${both ? ` <span class="tag ${r.hot ? "hot" : ""}">${r.catName}</span>` : ""}</td>
+        <td class="song g-song dc-${esc(r.diff)}" title="${esc(r.song)}（${esc(r.diff)}）">${esc(r.song)}${both ? ` <span class="tag ${r.hot ? "hot" : ""}">${r.catName}</span>` : ""}</td>
         <td class="num g-lv" data-l="Lv">${f2(r.level)}</td>
         <td class="num g-rate" data-l="達成率">${f2(r.rate)}% ${rankTag(r.rank)}</td>
         <td class="num g-skill" data-l="スキル"><b>${f2(r.skill)}</b></td>
@@ -531,7 +560,16 @@
     const list = S.fromCSV($("#importText").value);
     if (!list.length) return toast("読み込めるデータがありません");
     const replace = $("#importReplace").checked;
-    const go = () => { addEntries(list, replace); $("#importText").value = ""; toast(`${list.length} 件を取り込みました`); };
+    const go = () => {
+      const r = addEntries(list, replace);
+      $("#importText").value = "";
+      const parts = [];
+      if (r.added) parts.push(`${r.added} 件追加`);
+      if (r.updated) parts.push(`${r.updated} 件更新`);
+      toast((parts.join("・") || "変更なし") + (r.missed.length ? `（見つからない曲 ${r.missed.length} 件）` : ""));
+      $("#importMissed").hidden = !r.missed.length;
+      $("#importMissed").textContent = r.missed.length ? "見つからなかった曲: " + r.missed.join(" / ") : "";
+    };
     if (replace && entries.length && !isSample) confirmTap($("#importBtn"), `${entries.length}件を置き換え？もう一度押す`, go);
     else go();
   });

@@ -192,7 +192,7 @@
   }
 
   // ---------- CSV ----------
-  const CSV_HEADER = ["song", "diff", "level", "rate", "category"];
+  const CSV_HEADER = ["song", "diff", "level", "rate", "category", "tag"];
 
   function toCSV(entries) {
     const esc = (v) => {
@@ -200,7 +200,7 @@
       return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     };
     const lines = [CSV_HEADER.join(",")];
-    for (const e of entries) lines.push([e.song, e.diff, e.level, e.rate, e.hot ? "HOT" : "OTHER"].map(esc).join(","));
+    for (const e of entries) lines.push([e.song, e.diff, e.level, e.rate, e.hot ? "HOT" : "OTHER", e.tag || ""].map(esc).join(","));
     return lines.join("\n");
   }
 
@@ -242,15 +242,16 @@
       rate: ["rate", "achievement", "achieve", "達成率", "%"],
       category: ["category", "cat", "hot", "種別", "カテゴリ"],
       skill: ["skill", "スキル", "スキル値", "sp"],
+      tag: ["tag", "分類", "タグ", "メモ"],
     };
-    let idx = { song: 0, diff: 1, level: 2, rate: 3, category: 4, skill: -1 };
+    let idx = { song: 0, diff: 1, level: 2, rate: 3, category: 4, skill: -1, tag: -1 };
     let start = 0;
     const found = {};
     for (const [k, names] of Object.entries(aliases)) {
       const i = head.findIndex((h) => names.includes(h));
       if (i >= 0) found[k] = i;
     }
-    if ("song" in found && ("level" in found || "rate" in found || "skill" in found)) {
+    if ("song" in found && ("level" in found || "rate" in found || "skill" in found || "tag" in found || "diff" in found)) {
       idx = { ...idx, ...found };
       for (const k of Object.keys(idx)) if (!(k in found)) idx[k] = -1;
       start = 1;
@@ -269,13 +270,22 @@
       // レベルが無くてもスキル値と達成率があれば逆算する
       const sk = parseFloat(get("skill"));
       if (!level && sk > 0 && rate > 0) level = Math.round((sk / (rate * 0.2)) * 100) / 100;
-      out.push({
+      const item = {
         song,
         diff,
         level,
         rate,
         hot: cat === "HOT" || cat === "H" || cat === "1" || cat === "TRUE" || cat === "新曲",
-      });
+      };
+      const tag = get("tag");
+      if (tag) item.tag = tag;
+      // スコアの無い行（曲名＋難易度・分類だけ）は既存の曲の情報更新に使う
+      if (!level && !rate) {
+        item.meta = true;
+        if (!diffRaw) delete item.diff;
+        if (!cat) delete item.hot;
+      }
+      out.push(item);
     }
     return out;
   }

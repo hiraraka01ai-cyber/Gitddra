@@ -4,6 +4,7 @@
   --white-skill: #e9e9e9;
   --tg0: rgba(255, 207, 60, .28); --tg1: rgba(160, 166, 184, .28); --tg2: rgba(60, 207, 142, .28);
   --tg3: rgba(255, 143, 60, .30); --tg4: rgba(255, 77, 94, .30); --tg5: rgba(74, 163, 255, .28);
+  --dc-mas: rgba(179, 107, 255, .22); --dc-ext: rgba(255, 77, 94, .22); --dc-adv: rgba(74, 163, 255, .22); --dc-bas: rgba(60, 207, 142, .22);
   --pot-lo: rgba(74, 163, 255, .22); --pot-mid: rgba(60, 207, 142, .24); --pot-hi: rgba(255, 77, 94, .26);
   --white-chip: #f2f2f2;
   --on-accent: #ffffff;
@@ -258,3 +259,7 @@ table.scores { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .scores.goal td[data-l]::before { content: attr(data-l); display: block; font-size: 10.5px; color: var(--muted); }
   .scores.goal .pot { min-width: 0; }
 }
+.dc-MAS { background: var(--dc-mas); } .dc-EXT { background: var(--dc-ext); } .dc-ADV { background: var(--dc-adv); } .dc-BAS { background: var(--dc-bas); }
+.scores.goal td.g-song { padding-inline: 8px; }
+.dc-chip { padding: 0 6px; border-radius: 4px; }
+@media (max-width: 640px) { .scores.goal td.g-song { padding: 2px 6px; border-radius: 6px; } }

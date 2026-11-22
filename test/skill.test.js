@@ -107,3 +107,13 @@ test("bookmarklet URL が作れる", () => {
   assert.ok(u.startsWith("javascript:"));
   assert.doesNotThrow(() => new Function(decodeURIComponent(u.slice(11))));
 });
+
+test("CSV: 分類列と、スコア無しの更新用の行", () => {
+  const t = '曲名,難易度,分類\n"I, the Dreamer",MAS,許す\nPlum,EXT,フルコン狙い\n';
+  assert.deepEqual(S.fromCSV(t), [
+    { song: "I, the Dreamer", diff: "MAS", level: 0, rate: 0, tag: "許す", meta: true },
+    { song: "Plum", diff: "EXT", level: 0, rate: 0, tag: "フルコン狙い", meta: true },
+  ]);
+  const back = S.fromCSV(S.toCSV([{ song: "A", diff: "EXT", level: 8, rate: 90, hot: true, tag: "完了" }]));
+  assert.deepEqual(back, [{ song: "A", diff: "EXT", level: 8, rate: 90, hot: true, tag: "完了" }]);
+});

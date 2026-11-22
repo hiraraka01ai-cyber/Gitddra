@@ -99,7 +99,7 @@
             <tbody id="goalBody"></tbody>
           </table>
         </div>
-        <p class="hint"># はその枠の中でのスキル順位。ポテンシャル ＝ 目標達成率にしたときのスキル − 今のスキル（10 未満は青、10〜20 は緑、20 以上は赤）。分類は曲ごとに選べて、スコアと一緒に保存されます。</p>
+        <p class="hint">曲名の色は譜面（<span class="dc-MAS dc-chip">MAS</span> <span class="dc-EXT dc-chip">EXT</span> <span class="dc-ADV dc-chip">ADV</span> <span class="dc-BAS dc-chip">BAS</span>）。# はその枠の中でのスキル順位。ポテンシャル ＝ 目標達成率にしたときのスキル − 今のスキル（10 未満は青、10〜20 は緑、20 以上は赤）。分類は曲ごとに選べて、スコアと一緒に保存されます。</p>
         <details class="tag-edit">
           <summary>分類の候補を編集</summary>
           <label>「、」区切りで入力（上から順に色が付きます）<input id="goalTags" type="text" /></label>
@@ -253,6 +253,8 @@
           <label class="check"><input type="checkbox" id="importReplace" /> 既存データを置き換える</label>
           <button id="importBtn" class="primary">取り込む</button>
         </div>
+        <p class="hint" id="importMissed" hidden></p>
+        <p class="hint">「分類」列も読み込めます。<code>曲名,難易度,分類</code> のようにスコアの無い表を貼ると、登録済みの曲の難易度と分類だけを更新します（途中で切れた曲名でも、ほかの曲と区別できれば一致させます）。</p>
       </div>
       <div class="panel">
         <h2>エクスポート / その他</h2>
