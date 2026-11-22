@@ -314,31 +314,45 @@
       return null;
     }
 
-    function hotSongs(log) {
+    function skillTargets(log) {
       var url = findLink(document, /スキル対象/);
-      var hot = {};
-      if (!url) { log("スキル対象曲ページが見つからないため、HOT/OTHER は後で切り替えてください"); return Promise.resolve(hot); }
+      if (!url) {
+        var here = scrapeRateRows(document);
+        if (!here.length) { log("スキル対象曲ページへのリンクが見つかりません。プレーデータのページで実行してください"); return Promise.resolve(null); }
+        url = location.href;
+      }
       return fetchDoc(url).then(function (d) {
-        var tasks = [];
         var hotUrl = null, otherUrl = null;
         [].slice.call(d.querySelectorAll("a[href]")).forEach(function (a) {
           var s = (txt(a) + " " + attrText(a)).toUpperCase();
           if (/\bHOT\b|_HOT|HOT_|HOT\./.test(s) && !hotUrl) hotUrl = a.href;
           if (/\bOTHER\b|_OTHER|OTHER_|OTHER\./.test(s) && !otherUrl) otherUrl = a.href;
         });
-        var rows = scrapeRateRows(d);
         var tabbed = hotUrl && otherUrl && hotUrl !== otherUrl;
-        if (!tabbed) {
-          rows.forEach(function (r) { if (r.cat === "HOT") hot[r.song] = 1; });
-        } else if (hotUrl === url) {
-          rows.forEach(function (r) { hot[r.song] = 1; });
-        } else {
-          tasks.push(sleep(DELAY).then(function () { return fetchDoc(hotUrl); }).then(function (hd) {
-            scrapeRateRows(hd).forEach(function (r) { hot[r.song] = 1; });
-          }));
+        if (!tabbed) return scrapeRateRows(d);
+        function tab(u, cat) {
+          var p = withG(u) === withG(url) ? Promise.resolve(d) : sleep(DELAY).then(function () { return fetchDoc(u); });
+          return p.then(function (doc) {
+            var rs = scrapeRateRows(doc);
+            rs.forEach(function (r) { r.cat = cat; });
+            return rs;
+          });
         }
-        return Promise.all(tasks).then(function () { log("HOT 対象曲 " + Object.keys(hot).length + " 曲を確認"); return hot; });
-      }).catch(function (e) { log("スキル対象曲を読めませんでした: " + e.message); return hot; });
+        return tab(hotUrl, "HOT").then(function (h) {
+          return tab(otherUrl, "OTHER").then(function (o) { return h.concat(o); });
+        });
+      }).then(function (rows) {
+        if (rows) log("スキル対象曲 " + rows.length + " 曲（HOT " + rows.filter(function (r) { return r.cat === "HOT"; }).length + " / OTHER " + rows.filter(function (r) { return r.cat === "OTHER"; }).length + "）");
+        return rows;
+      }).catch(function (e) { log("スキル対象曲を読めませんでした: " + e.message); return null; });
+    }
+
+    function hotSongs(log) {
+      return skillTargets(log).then(function (rows) {
+        var hot = {};
+        (rows || []).forEach(function (r) { if (r.cat === "HOT") hot[r.song] = 1; });
+        return hot;
+      });
     }
 
     var frame = null;
@@ -524,23 +538,31 @@
       }).catch(function (e) { ui.progress("エラー: " + e.message); });
     }
 
+    function runSkill() {
+      ui.progress("スキル対象曲（HOT / OTHER）を読み込み中…");
+      skillTargets(ui.log).then(function (r) {
+        if (!r) { ui.progress("スキル対象曲を取得できませんでした"); return; }
+        rows = r;
+        ui.progress("完了：" + summary());
+        show();
+      });
+    }
+
     var sel = findCategorySelect(document);
     var canCrawl = !!(sel && [].slice.call(document.querySelectorAll("table")).some(function (t) { return headerDiffs(t); }));
+    var bS = document.createElement("button");
+    bS.textContent = "スキル対象曲を取得";
+    bS.setAttribute("style", btn + "background:#3ccf8e;color:#111;border:0;font-weight:700");
+    bS.onclick = runSkill;
+    $("dm-bm-mode").appendChild(bS);
     if (canCrawl) {
       var b1 = document.createElement("button");
-      b1.textContent = "全曲を取得（" + sel.options.length + " カテゴリ）";
-      b1.setAttribute("style", btn + "background:#3ccf8e;color:#111;border:0;font-weight:700");
+      b1.textContent = "全曲を取得（初回用・十数分）";
+      b1.setAttribute("style", btn + "background:transparent;color:#e8eaf0;border:1px solid #444");
       b1.onclick = runAll;
-      var b2 = document.createElement("button");
-      b2.textContent = "このページだけ";
-      b2.setAttribute("style", btn + "background:transparent;color:#e8eaf0;border:1px solid #444");
-      b2.onclick = runPage;
       $("dm-bm-mode").appendChild(b1);
-      $("dm-bm-mode").appendChild(b2);
-      ui.progress("曲別成績ページを検出しました。全曲取得はページを1つずつ読み込むので数分かかります。");
-    } else {
-      runPage();
     }
+    runSkill();
 
     $("dm-bm-close").onclick = function () { stopped = true; box.remove(); };
     function copyText(text, b) {
