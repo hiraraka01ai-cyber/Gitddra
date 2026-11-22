@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DM Skill Analyzer</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🥁</span>
+      <div>
+        <h1>DM Skill Analyzer</h1>
+        <p class="sub">ドラムマニア スキル分析ツール</p>
+      </div>
+    </div>
+    <div class="total-card" id="totalCard">
+      <div class="total-label">総スキル</div>
+      <div class="total-value" id="totalValue">0.00</div>
+      <div class="total-meta"><span class="chip" id="colorChip">白</span> <span id="nextInfo"></span></div>
+      <div class="bar"><div class="bar-fill" id="nextBar"></div></div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="overview" class="active">概要</button>
+    <button role="tab" data-tab="scores">スコア</button>
+    <button role="tab" data-tab="suggest">伸びしろ</button>
+    <button role="tab" data-tab="calc">計算機</button>
+    <button role="tab" data-tab="data">データ</button>
+  </nav>
+
+  <main>
+    <!-- 概要 -->
+    <section id="tab-overview" class="tab active">
+      <div class="grid2">
+        <div class="panel">
+          <h2>HOT <span class="muted" id="hotFilled"></span></h2>
+          <div class="stat-row">
+            <div class="stat"><div class="k">合計</div><div class="v" id="hotTotal">0</div></div>
+            <div class="stat"><div class="k">ボーダー</div><div class="v" id="hotBorder">-</div></div>
+            <div class="stat"><div class="k">平均</div><div class="v" id="hotAvg">-</div></div>
+          </div>
+          <ol class="ranklist" id="hotList"></ol>
+        </div>
+        <div class="panel">
+          <h2>OTHER <span class="muted" id="otherFilled"></span></h2>
+          <div class="stat-row">
+            <div class="stat"><div class="k">合計</div><div class="v" id="otherTotal">0</div></div>
+            <div class="stat"><div class="k">ボーダー</div><div class="v" id="otherBorder">-</div></div>
+            <div class="stat"><div class="k">平均</div><div class="v" id="otherAvg">-</div></div>
+          </div>
+          <ol class="ranklist" id="otherList"></ol>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>難易度帯ごとの曲数と平均達成率</h2>
+          <p class="hint">各曲の対象譜面（最高スキルの譜面）で集計</p>
+          <div id="levelChart" class="hbars"></div>
+        </div>
+        <div class="panel">
+          <h2>ランク分布</h2>
+          <div id="rankChart" class="hbars"></div>
+          <h2 class="mt">傾向</h2>
+          <ul id="insights" class="insights"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- スコア -->
+    <section id="tab-scores" class="tab">
+      <div class="panel">
+        <h2>スコアを追加</h2>
+        <form id="addForm" class="addform" autocomplete="off">
+          <label class="f-song">曲名<input name="song" required placeholder="曲名" list="songList" /></label>
+          <label>譜面
+            <select name="diff">
+              <option>BAS</option><option>ADV</option><option selected>EXT</option><option>MAS</option>
+            </select>
+          </label>
+          <label>レベル<input name="level" type="number" step="0.01" min="0.5" max="9.99" required placeholder="8.50" inputmode="decimal" /></label>
+          <label>達成率%<input name="rate" type="number" step="0.01" min="0" max="100" required placeholder="92.50" inputmode="decimal" /></label>
+          <label>枠
+            <select name="cat"><option value="OTHER">OTHER</option><option value="HOT">HOT</option></select>
+          </label>
+          <div class="preview" id="addPreview">スキル -</div>
+          <button type="submit" class="primary">追加</button>
+        </form>
+        <datalist id="songList"></datalist>
+      </div>
+
+      <div class="panel">
+        <div class="toolbar">
+          <input id="filter" type="search" placeholder="曲名で絞り込み" />
+          <select id="catFilter">
+            <option value="all">すべて</option>
+            <option value="HOT">HOT</option>
+            <option value="OTHER">OTHER</option>
+            <option value="counted">対象曲のみ</option>
+            <option value="uncounted">対象外のみ</option>
+          </select>
+          <span class="muted" id="countInfo"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="scores">
+            <thead>
+              <tr>
+                <th data-sort="song">曲名</th>
+                <th data-sort="diff">譜面</th>
+                <th data-sort="level" class="num">Lv</th>
+                <th data-sort="rate" class="num">達成率</th>
+                <th data-sort="rank">ランク</th>
+                <th data-sort="skill" class="num">スキル</th>
+                <th data-sort="hot">枠</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="scoreBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">表の数値はクリックで直接編集できます。<span class="tag on">対象</span> はスキル集計に入っている譜面です。</p>
+      </div>
+    </section>
+
+    <!-- 伸びしろ -->
+    <section id="tab-suggest" class="tab">
+      <div class="panel">
+        <h2>伸ばすと総スキルが上がる譜面</h2>
+        <p class="hint">各譜面を「次のランク」または「+<input id="stepInput" type="number" value="2" min="0.5" max="20" step="0.5" class="inline-num" />%」まで伸ばした場合の総スキル増分。枠からはみ出す曲との入れ替えも考慮しています。</p>
+        <div class="table-wrap">
+          <table class="scores">
+            <thead><tr><th>曲名</th><th>譜面</th><th class="num">Lv</th><th class="num">現在</th><th class="num">目標</th><th class="num">必要</th><th class="num">増分</th><th class="num">1%あたり</th></tr></thead>
+            <tbody id="suggestBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>新曲を枠に入れるには</h2>
+        <p class="hint">未登録の譜面で現在のボーダーを超えるのに必要な達成率</p>
+        <div class="table-wrap">
+          <table class="scores">
+            <thead><tr><th class="num">Lv</th><th class="num">HOT 必要%</th><th class="num">OTHER 必要%</th><th class="num">100%時</th></tr></thead>
+            <tbody id="borderBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 計算機 -->
+    <section id="tab-calc" class="tab">
+      <div class="grid2">
+        <div class="panel">
+          <h2>スキル値計算</h2>
+          <div class="calc">
+            <label>レベル<input id="cLevel" type="number" step="0.01" value="8.50" inputmode="decimal" /></label>
+            <label>達成率%<input id="cRate" type="number" step="0.01" value="90.00" inputmode="decimal" /></label>
+          </div>
+          <div class="big" id="cResult">-</div>
+        </div>
+        <div class="panel">
+          <h2>必要達成率</h2>
+          <div class="calc">
+            <label>レベル<input id="rLevel" type="number" step="0.01" value="8.50" inputmode="decimal" /></label>
+            <label>目標スキル値<input id="rSkill" type="number" step="0.01" value="160" inputmode="decimal" /></label>
+          </div>
+          <div class="big" id="rResult">-</div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>目標総スキル</h2>
+        <div class="calc">
+          <label>目標<input id="tTarget" type="number" step="1" inputmode="numeric" /></label>
+        </div>
+        <div id="tResult" class="target-out"></div>
+      </div>
+      <div class="panel">
+        <h2>スキル色の目安</h2>
+        <div id="colorTable" class="color-table"></div>
+        <p class="hint">色区分は js/skill.js の COLORS で調整できます。</p>
+      </div>
+    </section>
+
+    <!-- データ -->
+    <section id="tab-data" class="tab">
+      <div class="panel">
+        <h2>インポート</h2>
+        <p class="hint">CSV / TSV を貼り付けるかファイルを選択。ヘッダー例: <code>song,diff,level,rate,category</code>（日本語の <code>曲名,難易度,レベル,達成率,種別</code> も可）。ヘッダーなしなら同じ並びと見なします。</p>
+        <textarea id="importText" rows="8" placeholder="曲名,難易度,レベル,達成率,種別&#10;曲A,EXT,8.20,91.30,HOT"></textarea>
+        <div class="btns">
+          <input type="file" id="importFile" accept=".csv,.tsv,.txt,text/csv" />
+          <label class="check"><input type="checkbox" id="importReplace" /> 既存データを置き換える</label>
+          <button id="importBtn" class="primary">取り込む</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>エクスポート / その他</h2>
+        <div class="btns">
+          <button id="exportBtn">CSV をダウンロード</button>
+          <button id="copyBtn">CSV をコピー</button>
+          <button id="sampleBtn">サンプルデータを読み込む</button>
+          <button id="clearBtn" class="danger">全データ削除</button>
+        </div>
+        <p class="hint">データはこのブラウザ（localStorage）にのみ保存されます。</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/skill.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
