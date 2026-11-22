@@ -86,3 +86,8 @@ test("CSV 往復と日本語ヘッダー", () => {
   const noHeader = "x\tMAS\t9.5\t80\tOTHER";
   assert.deepEqual(S.fromCSV(noHeader), [{ song: "x", diff: "MAS", level: 9.5, rate: 80, hot: false }]);
 });
+
+test("CSV: レベル無しならスキル値から逆算", () => {
+  const t = "曲名,達成率,スキル値,種別\nX,90.00%,153.00,HOT\n";
+  assert.deepEqual(S.fromCSV(t), [{ song: "X", diff: "EXT", level: 8.5, rate: 90, hot: true }]);
+});

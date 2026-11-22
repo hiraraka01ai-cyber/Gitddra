@@ -238,15 +238,16 @@
       level: ["level", "lv", "レベル", "難易度値"],
       rate: ["rate", "achievement", "achieve", "達成率", "%"],
       category: ["category", "cat", "hot", "種別", "カテゴリ"],
+      skill: ["skill", "スキル", "スキル値", "sp"],
     };
-    let idx = { song: 0, diff: 1, level: 2, rate: 3, category: 4 };
+    let idx = { song: 0, diff: 1, level: 2, rate: 3, category: 4, skill: -1 };
     let start = 0;
     const found = {};
     for (const [k, names] of Object.entries(aliases)) {
       const i = head.findIndex((h) => names.includes(h));
       if (i >= 0) found[k] = i;
     }
-    if ("song" in found && ("level" in found || "rate" in found)) {
+    if ("song" in found && ("level" in found || "rate" in found || "skill" in found)) {
       idx = { ...idx, ...found };
       for (const k of Object.keys(idx)) if (!(k in found)) idx[k] = -1;
       start = 1;
@@ -260,11 +261,16 @@
       const diffRaw = get("diff").toUpperCase();
       const diff = DIFFS.find((d) => diffRaw.startsWith(d.slice(0, 3))) || (diffRaw.startsWith("MST") ? "MAS" : "EXT");
       const cat = get("category").toUpperCase();
+      const rate = parseFloat(get("rate").replace("%", "")) || 0;
+      let level = parseFloat(get("level")) || 0;
+      // レベルが無くてもスキル値と達成率があれば逆算する
+      const sk = parseFloat(get("skill"));
+      if (!level && sk > 0 && rate > 0) level = Math.round((sk / (rate * 0.2)) * 100) / 100;
       out.push({
         song,
         diff,
-        level: parseFloat(get("level")) || 0,
-        rate: parseFloat(get("rate").replace("%", "")) || 0,
+        level,
+        rate,
         hot: cat === "HOT" || cat === "H" || cat === "1" || cat === "TRUE" || cat === "新曲",
       });
     }

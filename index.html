@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DM Skill Analyzer</title>
+  <meta name="claude:viewport-fit-sides" content="cover" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -20,6 +21,7 @@
       <div class="total-value" id="totalValue">0.00</div>
       <div class="total-meta"><span class="chip" id="colorChip">白</span> <span id="nextInfo"></span></div>
       <div class="bar"><div class="bar-fill" id="nextBar"></div></div>
+      <div class="sync" id="syncState" data-state="local"></div>
     </div>
   </header>
 
@@ -32,6 +34,10 @@
   </nav>
 
   <main>
+    <div class="banner" id="sampleBanner" hidden>
+      <span><b>サンプルデータを表示中</b>（架空の曲・保存されません）。スコアを追加するか取り込むと、自分のデータに切り替わります。</span>
+      <button id="sampleExit" type="button">自分のデータを入れる</button>
+    </div>
     <!-- 概要 -->
     <section id="tab-overview" class="tab active">
       <div class="grid2">
@@ -186,6 +192,14 @@
     <!-- データ -->
     <section id="tab-data" class="tab">
       <div class="panel">
+        <h2>自分のデータの入れ方</h2>
+        <ol class="howto">
+          <li><b>1曲ずつ入力</b>：「スコア」タブで曲名・譜面・レベル・達成率・HOT/OTHER を入れて追加。同じ曲・譜面をもう一度入れると、高い方の達成率が残ります。</li>
+          <li><b>まとめて貼り付け</b>：スプレッドシートなどで下の形式の表を作り、コピーして貼り付け。列は「曲名, 難易度, レベル, 達成率, 種別」。タブ区切りのままでも読めます。</li>
+          <li><b>公式サイトのスキル対象曲から</b>：e-AMUSEMENT の GITADORA プレイヤーデータにある「スキル対象曲」（HOT / OTHER）の曲名・達成率・スキル値を表に写して貼り付け。レベル列が無くても、スキル値と達成率からレベルを逆算します（例: <code>曲名,達成率,スキル値,種別</code>）。</li>
+        </ol>
+      </div>
+      <div class="panel">
         <h2>インポート</h2>
         <p class="hint">CSV / TSV を貼り付けるかファイルを選択。ヘッダー例: <code>song,diff,level,rate,category</code>（日本語の <code>曲名,難易度,レベル,達成率,種別</code> も可）。ヘッダーなしなら同じ並びと見なします。</p>
         <textarea id="importText" rows="8" placeholder="曲名,難易度,レベル,達成率,種別&#10;曲A,EXT,8.20,91.30,HOT"></textarea>
@@ -203,7 +217,7 @@
           <button id="sampleBtn">サンプルデータを読み込む</button>
           <button id="clearBtn" class="danger">全データ削除</button>
         </div>
-        <p class="hint">データはこのブラウザ（localStorage）にのみ保存されます。</p>
+        <p class="hint">claude.ai 上で開いている場合は、あなた専用の保存領域に保存され、別の端末からも同じデータが見えます（ページを共有しても他の人には見えません）。それ以外ではこのブラウザにだけ保存されます。</p>
       </div>
     </section>
   </main>

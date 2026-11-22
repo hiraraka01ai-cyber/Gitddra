@@ -1,4 +1,9 @@
+/* レイアウト: 上部に総スキル、タブで切り替える1カラム〜2カラムのツール画面。ダークを基本にライトも用意 */
 :root {
+  color-scheme: dark;
+  --white-skill: #e9e9e9;
+  --white-chip: #f2f2f2;
+  --on-accent: #ffffff;
   --bg: #0e1016;
   --panel: #171a23;
   --panel2: #1f2330;
@@ -12,17 +17,20 @@
   --radius: 12px;
 }
 @media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f4f5f8;
-    --panel: #ffffff;
-    --panel2: #eef0f5;
-    --line: #dde0e8;
-    --text: #1b1e27;
-    --muted: #6a7084;
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #f4f5f8; --panel: #ffffff; --panel2: #eef0f5; --line: #dde0e8; --text: #1b1e27; --muted: #626879;
+    --accent: #e8462a; --white-skill: #9a9a9a; --white-chip: #e5e5e5;
   }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f5f8; --panel: #ffffff; --panel2: #eef0f5; --line: #dde0e8; --text: #1b1e27; --muted: #626879;
+  --accent: #e8462a; --white-skill: #9a9a9a; --white-chip: #e5e5e5;
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -42,7 +50,7 @@ code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
 /* header */
 .top {
   display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;
-  padding: 18px 16px 10px; max-width: 1200px; margin: 0 auto;
+  padding-block: 18px 10px; max-width: 1200px; margin: 0 auto;
 }
 .brand { display: flex; gap: 10px; align-items: center; }
 .logo { font-size: 30px; }
@@ -59,7 +67,7 @@ code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
 
 /* skill colors */
 .chip { display: inline-block; padding: 1px 8px; border-radius: 99px; font-weight: 700; font-size: 12px; color: #111; background: #ddd; }
-.c-white { color: #e9e9e9; } .chip.c-white { background: #f2f2f2; }
+.c-white { color: var(--white-skill); } .chip.c-white { background: var(--white-chip); }
 .c-orange { color: #ff9a3c; } .chip.c-orange { background: #ff9a3c; }
 .c-yellow { color: #f2d32c; } .chip.c-yellow { background: #f2d32c; }
 .c-green { color: #43d17a; } .chip.c-green { background: #43d17a; }
@@ -72,11 +80,10 @@ code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
 .c-rainbow { background: linear-gradient(90deg,#ff4d4d,#ffb84d,#f5f54d,#4dff88,#4dc3ff,#b84dff); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .chip.c-rainbow { background: linear-gradient(90deg,#ff4d4d,#ffb84d,#f5f54d,#4dff88,#4dc3ff,#b84dff); color: #111; -webkit-background-clip: border-box; background-clip: border-box; }
 .chip.grad { box-shadow: inset 0 -8px 10px rgba(255,255,255,.45); }
-@media (prefers-color-scheme: light) { .c-white { color: #999; } .chip.c-white { background: #e5e5e5; } }
 
 /* tabs */
 .tabs {
-  display: flex; gap: 4px; padding: 0 16px; max-width: 1200px; margin: 6px auto 0;
+  display: flex; gap: 4px; max-width: 1200px; margin: 6px auto 0;
   overflow-x: auto; border-bottom: 1px solid var(--line);
 }
 .tabs button {
@@ -85,7 +92,20 @@ code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
 }
 .tabs button.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 700; }
 
-main { max-width: 1200px; margin: 0 auto; padding: 14px 16px 60px; }
+.top, .tabs, main {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 1200px; margin: 0 auto; padding-block: 14px 60px; }
+.banner {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  border: 1px dashed var(--accent2); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 14px; font-size: 13.5px;
+}
+.sync { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+.sync[data-state="ok"] { color: var(--good); }
+.sync[data-state="err"] { color: var(--bad); }
+.howto { margin: 0; padding-left: 20px; font-size: 13.5px; display: grid; gap: 6px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .tab { display: none; }
 .tab.active { display: block; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; min-width: 0; }
@@ -139,7 +159,8 @@ button {
   background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer;
 }
 button:hover { border-color: var(--muted); }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+button:focus-visible, .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button.danger { color: var(--bad); }
 .addform { display: grid; grid-template-columns: 2.4fr .9fr .9fr .9fr .9fr 1fr auto; gap: 8px; align-items: end; }
 .addform .preview { font-size: 13px; color: var(--muted); padding-bottom: 8px; font-variant-numeric: tabular-nums; }
@@ -187,7 +208,7 @@ table.scores { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .color-table div.cur { outline: 2px solid var(--accent); }
 
 .toast {
-  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(80px);
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(80px);
   background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 8px; font-size: 13.5px;
   transition: transform .25s; pointer-events: none; max-width: calc(100% - 32px);
 }
