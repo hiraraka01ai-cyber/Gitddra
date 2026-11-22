@@ -341,6 +341,38 @@
       }).catch(function (e) { log("スキル対象曲を読めませんでした: " + e.message); return hot; });
     }
 
+    var frame = null;
+    var frameOk = true;
+    function frameDoc(url) {
+      url = withG(url);
+      if (!frameOk) return fetchDoc(url);
+      return new Promise(function (resolve, reject) {
+        if (!frame) {
+          frame = document.createElement("iframe");
+          frame.setAttribute("style", "position:fixed;left:-9999px;top:0;width:1024px;height:768px;opacity:0;pointer-events:none");
+          frame.setAttribute("aria-hidden", "true");
+          document.body.appendChild(frame);
+        }
+        var done = false;
+        var timer = setTimeout(function () { finish(); }, 15000);
+        function finish() {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          frame.onload = null;
+          var d = null;
+          try { d = frame.contentDocument; } catch (e) { d = null; }
+          if (!d || !d.body || d.location.href === "about:blank") { frameOk = false; dbg.frame = "iframe 不可、fetch に切り替え"; resolve(fetchDoc(url)); return; }
+          resolve(d);
+        }
+        frame.onload = function () {
+          try { if (frame.contentWindow.location.href === "about:blank") return; } catch (e) {}
+          setTimeout(finish, 900);
+        };
+        frame.src = url;
+      });
+    }
+
     function crawl(ui) {
       var sel = findCategorySelect(document);
       var cats = sel && categoryUrls(sel);
@@ -355,7 +387,7 @@
         if (i >= cats.length) return Promise.resolve();
         var c = cats[i++];
         ui.progress("カテゴリ " + i + "/" + cats.length + "（" + c.label + "）");
-        return fetchDoc(c.url).then(function (d) {
+        return frameDoc(c.url).then(function (d) {
           var got = listSongs(d);
           dbg.cats.push(c.label + ": " + got.length + "曲 / プレー済み " + got.filter(function (x) { return x.played.length; }).length);
           if (!dbg.catSample && (got.length || i === 1)) {
@@ -375,7 +407,7 @@
         if (stopped || j >= played.length) return Promise.resolve();
         var s = played[j++];
         ui.progress("曲の詳細 " + j + "/" + played.length + "：" + s.song);
-        return fetchDoc(s.href).then(function (d) {
+        return frameDoc(s.href).then(function (d) {
           var det = parseDetail(d);
           if (!dbg.detail) {
             dbg.detail = "url: " + s.href.replace(/^https?:\/\/[^\/]+/, "") + "\nplayed: " + s.played.join(",") + " rates: " + JSON.stringify(s.rates) + "\n" + slim(d.body, 9000);
@@ -396,6 +428,7 @@
         ui.log("全 " + songs.length + " 曲中、プレー済み " + played.length + " 曲");
         return nextSong();
       }).then(function () {
+        if (frame) { frame.remove(); frame = null; }
         if (stopped) ui.log("中断しました（ここまでの分を出力）");
         return hotSongs(ui.log);
       }).then(function (hot) {
@@ -521,7 +554,22 @@
       var s = findCategorySelect(document);
       var t = [].slice.call(document.querySelectorAll("table")).filter(function (x) { return headerDiffs(x); })[0];
       var trs = t ? [].slice.call(t.querySelectorAll("tr")).slice(0, 4).map(function (r) { return r.outerHTML; }).join("\n") : "(表なし)";
+      var liveRow = "";
+      [].slice.call(document.querySelectorAll("tr")).some(function (r) {
+        var hit = [].slice.call(r.children).some(function (c) { return /(^|\s)icon-[a-z0-9]/i.test(c.className || "") || (c.className && /rank/.test(c.className) && (c.querySelector("img,span,div") || txt(c))); });
+        if (hit) liveRow = slim(r, 2000);
+        return hit;
+      });
+      var scripts = [].slice.call(document.querySelectorAll("script")).map(function (x) {
+        var src = x.getAttribute("src");
+        if (src) return "src=" + src.replace(/^https?:\/\/[^\/]+/, "");
+        var t = x.textContent;
+        return /rank|icon|score/i.test(t) ? "inline: " + t.replace(/\s+/g, " ").slice(0, 1500) : "";
+      }).filter(Boolean).join("\n");
       var info = [
+        "frame: " + (dbg.frame || (frameOk ? "iframe" : "fetch")),
+        "liveRow: " + (liveRow || "(ランク付きの行が画面に無い)"),
+        "scripts:\n" + scripts.slice(0, 5000),
         "log: " + $("dm-bm-status").textContent + " / " + [].slice.call($("dm-bm-log").children).map(function (x) { return x.textContent; }).join(" / "),
         "categories: " + dbg.cats.slice(0, 40).join(" | "),
         "path: " + location.pathname + location.search.replace(/([?&](?:id|rival|uid|code)[^=]*=)[^&]*/gi, "$1***"),
