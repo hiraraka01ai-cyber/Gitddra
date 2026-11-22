@@ -156,6 +156,18 @@
 
     /* ---------- 通信 ---------- */
     var stopped = false;
+    var dbg = { cats: [], catSample: "", detail: "", detailParsed: "" };
+    function slim(el, max) {
+      var c = el.cloneNode(true);
+      [].slice.call(c.querySelectorAll("script,style,svg,noscript,iframe,link,meta")).forEach(function (x) { x.remove(); });
+      [].slice.call(c.querySelectorAll("*")).forEach(function (x) {
+        [].slice.call(x.attributes).forEach(function (a) {
+          if (!/^(class|id|href|src|alt|title|name|value|onchange|onclick|colspan)$/i.test(a.name)) x.removeAttribute(a.name);
+          else if (/^(href|src)$/i.test(a.name)) x.setAttribute(a.name, a.value.replace(/^https?:\/\/[^\/]+/, ""));
+        });
+      });
+      return c.innerHTML.replace(/\s+/g, " ").slice(0, max);
+    }
     function fetchDoc(url) {
       return fetch(url, { credentials: "same-origin" }).then(function (res) {
         if (!res.ok) throw new Error("HTTP " + res.status + " " + url);
@@ -327,7 +339,13 @@
         var c = cats[i++];
         ui.progress("カテゴリ " + i + "/" + cats.length + "（" + c.label + "）");
         return fetchDoc(c.url).then(function (d) {
-          listSongs(d).forEach(function (s) {
+          var got = listSongs(d);
+          dbg.cats.push(c.label + ": " + got.length + "曲 / プレー済み " + got.filter(function (x) { return x.played.length; }).length);
+          if (!dbg.catSample && (got.length || i === 1)) {
+            var tb = [].slice.call(d.querySelectorAll("table")).filter(function (x) { return headerDiffs(x); })[0];
+            dbg.catSample = "url: " + c.url.replace(/^https?:\/\/[^\/]+/, "") + "\n" + (tb ? [].slice.call(tb.querySelectorAll("tr")).slice(0, 5).map(function (r) { return slim(r, 1500); }).join("\n") : "(DM の難易度見出しの表なし) " + slim(d.body, 4000));
+          }
+          got.forEach(function (s) {
             var k = s.song + "\u0000" + s.href;
             if (!seen[k]) { seen[k] = 1; songs.push(s); }
           });
@@ -342,6 +360,10 @@
         ui.progress("曲の詳細 " + j + "/" + played.length + "：" + s.song);
         return fetchDoc(s.href).then(function (d) {
           var det = parseDetail(d);
+          if (!dbg.detail) {
+            dbg.detail = "url: " + s.href.replace(/^https?:\/\/[^\/]+/, "") + "\nplayed: " + s.played.join(",") + " rates: " + JSON.stringify(s.rates) + "\n" + slim(d.body, 9000);
+            dbg.detailParsed = JSON.stringify(det);
+          }
           s.played.forEach(function (df) {
             var x = det[df] || {};
             var rate = x.rate != null ? x.rate : s.rates[df];
@@ -483,11 +505,16 @@
       var t = [].slice.call(document.querySelectorAll("table")).filter(function (x) { return headerDiffs(x); })[0];
       var trs = t ? [].slice.call(t.querySelectorAll("tr")).slice(0, 4).map(function (r) { return r.outerHTML; }).join("\n") : "(表なし)";
       var info = [
+        "log: " + $("dm-bm-status").textContent + " / " + [].slice.call($("dm-bm-log").children).map(function (x) { return x.textContent; }).join(" / "),
+        "categories: " + dbg.cats.slice(0, 40).join(" | "),
         "path: " + location.pathname + location.search.replace(/([?&](?:id|rival|uid|code)[^=]*=)[^&]*/gi, "$1***"),
         "charset: " + document.characterSet,
         "select: " + (s ? s.outerHTML.slice(0, 600) : "(なし)"),
         "form: " + (s && s.form ? s.form.outerHTML.slice(0, 300) : "(なし)"),
-        "rows:\n" + trs.slice(0, 3000)
+        "rows:\n" + trs.slice(0, 3000),
+        "catSample:\n" + dbg.catSample,
+        "detailParsed: " + dbg.detailParsed,
+        "detail:\n" + dbg.detail
       ].join("\n");
       copyText(info, this);
     };
