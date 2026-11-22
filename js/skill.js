@@ -205,6 +205,9 @@
   }
 
   function parseCSVRows(text) {
+    // 1行目にタブがあればタブ区切り、なければカンマ区切り
+    const firstLine = text.split(/\r?\n/, 1)[0];
+    const delim = firstLine.includes("\t") ? "\t" : ",";
     const rows = [];
     let row = [], field = "", q = false;
     for (let i = 0; i < text.length; i++) {
@@ -214,7 +217,7 @@
         else if (ch === '"') q = false;
         else field += ch;
       } else if (ch === '"') q = true;
-      else if (ch === "," || ch === "\t") { row.push(field); field = ""; }
+      else if (ch === delim) { row.push(field); field = ""; }
       else if (ch === "\n" || ch === "\r") {
         if (ch === "\r" && text[i + 1] === "\n") i++;
         row.push(field); rows.push(row); row = []; field = "";

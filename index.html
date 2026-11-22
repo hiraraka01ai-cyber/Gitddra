@@ -199,6 +199,20 @@
           <li><b>公式サイトのスキル対象曲から</b>：e-AMUSEMENT の GITADORA プレイヤーデータにある「スキル対象曲」（HOT / OTHER）の曲名・達成率・スキル値を表に写して貼り付け。レベル列が無くても、スキル値と達成率からレベルを逆算します（例: <code>曲名,達成率,スキル値,種別</code>）。</li>
         </ol>
       </div>
+      <div class="panel" id="bmPanel">
+        <h2>公式サイトから取り込む（ブックマークレット）</h2>
+        <ol class="howto">
+          <li><b>登録</b>：パソコンは下のボタンをブックマークバーにドラッグ。スマホは「コードをコピー」して、適当なページをブックマークし、そのブックマークの URL をコピーしたコードに書き換えます。</li>
+          <li><b>実行</b>：e-AMUSEMENT の GITADORA プレイヤーデータで、ドラムの「スキル対象曲」（HOT / OTHER）を開き、ブックマークを開きます。スマホはアドレスバーにブックマーク名を入力して候補から選びます。</li>
+          <li><b>取り込み</b>：表示された窓の「コピー」を押し、このページの下の入力欄に貼り付けて「取り込む」。HOT と OTHER が別ページなら、それぞれで実行します。</li>
+        </ol>
+        <div class="btns">
+          <a id="bmLink" class="bm-link" href="#" draggable="true">DMスキル取り込み</a>
+          <button id="bmCopy" type="button">コードをコピー</button>
+        </div>
+        <textarea id="bmCode" rows="3" readonly hidden></textarea>
+        <p class="hint">公式ページは表の形ではなく「達成率（xx.xx%）」を手がかりに読み取ります。曲が取れない・枠や譜面がずれるときは、そのページのスクリーンショットを送ってもらえれば調整します。</p>
+      </div>
       <div class="panel">
         <h2>インポート</h2>
         <p class="hint">CSV / TSV を貼り付けるかファイルを選択。ヘッダー例: <code>song,diff,level,rate,category</code>（日本語の <code>曲名,難易度,レベル,達成率,種別</code> も可）。ヘッダーなしなら同じ並びと見なします。</p>
@@ -225,6 +239,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="js/skill.js"></script>
+  <script src="js/bookmarklet.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

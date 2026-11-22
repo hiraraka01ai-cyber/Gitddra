@@ -504,6 +504,23 @@
     return out;
   }
 
+  // ブックマークレット
+  const TOOL_URL = embedded ? "https://claude.ai/artifact/QzcKjqqxgD5ZNfkTp2MVnn" : location.href.split("#")[0];
+  const bmURL = window.DMBookmarklet ? window.DMBookmarklet.bookmarkletURL(TOOL_URL) : "";
+  if (bmURL) {
+    const link = $("#bmLink");
+    link.setAttribute("href", bmURL);
+    link.addEventListener("click", (ev) => { ev.preventDefault(); toast("ブックマークバーにドラッグして登録してください"); });
+    $("#bmCopy").addEventListener("click", () => {
+      const t = $("#bmCode");
+      t.value = bmURL;
+      t.hidden = false;
+      const fallback = () => { t.focus(); t.select(); toast("表示されたコードを選択してコピーしてください"); };
+      try { navigator.clipboard.writeText(bmURL).then(() => toast("コードをコピーしました"), fallback); }
+      catch (_) { fallback(); }
+    });
+  } else $("#bmPanel").hidden = true;
+
   if (!entries.length) showSample();
   else render();
   initCloud();

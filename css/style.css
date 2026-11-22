@@ -213,3 +213,9 @@ table.scores { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   transition: transform .25s; pointer-events: none; max-width: calc(100% - 32px);
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
+
+.bm-link {
+  display: inline-block; padding: 8px 14px; border-radius: 8px; font-weight: 700; text-decoration: none;
+  background: var(--accent2); color: #1b1e27; cursor: grab;
+}
+.bm-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

@@ -91,3 +91,19 @@ test("CSV: レベル無しならスキル値から逆算", () => {
   const t = "曲名,達成率,スキル値,種別\nX,90.00%,153.00,HOT\n";
   assert.deepEqual(S.fromCSV(t), [{ song: "X", diff: "EXT", level: 8.5, rate: 90, hot: true }]);
 });
+
+test("TSV: 曲名のカンマで分割しない", () => {
+  const t = "曲名\t難易度\tレベル\t達成率\tスキル値\t種別\nSong, One\tMAS\t\t91.30\t167.07\tHOT\n";
+  const [e] = S.fromCSV(t);
+  assert.equal(e.song, "Song, One");
+  assert.equal(e.diff, "MAS");
+  assert.equal(e.level, 9.15);
+  assert.equal(S.chartSkill(e.level, e.rate), 167.07);
+});
+
+test("bookmarklet URL が作れる", () => {
+  const B = require("../js/bookmarklet.js");
+  const u = B.bookmarkletURL("https://example.test/");
+  assert.ok(u.startsWith("javascript:"));
+  assert.doesNotThrow(() => new Function(decodeURIComponent(u.slice(11))));
+});
