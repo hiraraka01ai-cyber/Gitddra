@@ -316,9 +316,11 @@
 
     function skillTargets(log) {
       var url = findLink(document, /スキル対象/);
+      if (!url && /\/skill\.html/.test(location.pathname)) url = location.href;
+      if (!url && /\/p\/playdata\//.test(location.pathname)) url = new URL("skill.html?gtype=" + GTYPE + "&stype=", location.href).href;
       if (!url) {
         var here = scrapeRateRows(document);
-        if (!here.length) { log("スキル対象曲ページへのリンクが見つかりません。プレーデータのページで実行してください"); return Promise.resolve(null); }
+        if (!here.length) { log("スキル対象曲ページが分かりません。GITADORA のプレーデータのページで実行してください"); return Promise.resolve(null); }
         url = location.href;
       }
       return fetchDoc(url).then(function (d) {
