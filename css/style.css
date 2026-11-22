@@ -260,6 +260,8 @@ table.scores { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .scores.goal .pot { min-width: 0; }
 }
 .dc-MAS { background: var(--dc-mas); } .dc-EXT { background: var(--dc-ext); } .dc-ADV { background: var(--dc-adv); } .dc-BAS { background: var(--dc-bas); }
-.scores.goal td.g-song { padding-inline: 8px; }
-.dc-chip { padding: 0 6px; border-radius: 4px; }
-@media (max-width: 640px) { .scores.goal td.g-song { padding: 2px 6px; border-radius: 6px; } }
+.scores.goal tbody tr:hover td { background: var(--panel2); }
+.scores.goal .tg { border: 0; }
+.scores.goal .pot { font-weight: 600; }
+.warn { color: var(--bad); font-size: 13px; margin: 8px 0; }
+button:disabled { opacity: .45; cursor: default; }

@@ -7,7 +7,13 @@
   const f2 = (n) => (Number(n) || 0).toFixed(2);
 
   // ---------- state ----------
-  let entries = load();
+  // 見出し行が曲として登録されたもの・スコアの無い行を取り除く
+  const HEADER_WORDS = new Set(["曲名", "song", "title", "曲"]);
+  function sanitize(list) {
+    return (Array.isArray(list) ? list : []).filter((e) => e && String(e.song || "").trim() &&
+      !HEADER_WORDS.has(String(e.song).trim().toLowerCase()) && (Number(e.rate) > 0 || Number(e.level) > 0));
+  }
+  let entries = sanitize(load());
   // データが空のときはサンプルを表示（保存はしない）
   let isSample = false;
   let nextId = 1;
@@ -99,12 +105,15 @@
     } catch (_) { /* クラウド無しで動作 */ }
   }
   function applyRemote(list, remoteSettings) {
-    entries = list;
+    const clean = sanitize(list);
+    const fixed = clean.length !== list.length;
+    entries = clean;
     if (remoteSettings && typeof remoteSettings === "object") settings = { ...settings, ...remoteSettings };
     cloud.lastJSON = JSON.stringify({ entries, settings });
     isSample = false;
     resetIds();
     try { localStorage.setItem(KEY, JSON.stringify(entries)); localStorage.setItem(KEY + ":settings", JSON.stringify(settings)); } catch (_) {}
+    if (fixed) { cloud.lastJSON = null; save(); }
     render();
   }
 
@@ -142,7 +151,17 @@
     return hits.reduce((b, x) => (S.chartSkill(x.level, x.rate) > S.chartSkill(b.level, b.rate) ? x : b));
   }
 
+  // 直前の状態を1つだけ取っておく（取り込み・全削除を元に戻す用）
+  function backup() {
+    if (isSample) return;
+    try { localStorage.setItem(KEY + ":undo", JSON.stringify(entries)); } catch (_) {}
+  }
+  function hasBackup() {
+    try { return !!localStorage.getItem(KEY + ":undo"); } catch (_) { return false; }
+  }
+
   function addEntries(list, replace) {
+    backup();
     leaveSample();
     if (replace) entries = [];
     const result = { added: 0, updated: 0, missed: [] };
@@ -159,16 +178,18 @@
       // 同じ曲・同じ譜面は上書き（高い方を残す）
       const dup = entries.find((x) => x.song.trim().toLowerCase() === e.song.trim().toLowerCase() && x.diff === e.diff);
       if (dup) {
-        dup.level = e.level;
+        if (Number(e.level) > 0) dup.level = e.level;
         dup.rate = Math.max(Number(dup.rate) || 0, Number(e.rate) || 0);
         dup.hot = e.hot;
         if (e.tag) dup.tag = e.tag;
         result.updated++;
       } else {
+        if (!(Number(e.level) > 0) && !(Number(e.rate) > 0)) continue;
         entries.push({ id: nextId++, song: e.song, diff: e.diff, level: Number(e.level), rate: Number(e.rate), hot: !!e.hot, ...(e.tag ? { tag: e.tag } : {}) });
         result.added++;
       }
     }
+    entries = sanitize(entries);
     save();
     render();
     return result;
@@ -196,6 +217,7 @@
     renderScores(a);
     renderSuggest(a);
     renderCalc(a);
+    renderDataState();
     $("#songList").innerHTML = [...new Set(entries.map((e) => e.song))].map((s) => `<option value="${esc(s)}">`).join("");
   }
 
@@ -350,7 +372,7 @@
     $("#goalBody").innerHTML = rows.map((r) => `
       <tr data-id="${r.id}" class="${r.counted ? "" : "dim"}">
         <td class="num muted g-no">${r.no}</td>
-        <td class="song g-song dc-${esc(r.diff)}" title="${esc(r.song)}（${esc(r.diff)}）">${esc(r.song)}${both ? ` <span class="tag ${r.hot ? "hot" : ""}">${r.catName}</span>` : ""}</td>
+        <td class="song g-song" title="${esc(r.song)}（${esc(r.diff)}）">${diffTag(r.diff)} ${esc(r.song)}${both ? ` <span class="tag ${r.hot ? "hot" : ""}">${r.catName}</span>` : ""}</td>
         <td class="num g-lv" data-l="Lv">${f2(r.level)}</td>
         <td class="num g-rate" data-l="達成率">${f2(r.rate)}% ${rankTag(r.rank)}</td>
         <td class="num g-skill" data-l="スキル"><b>${f2(r.skill)}</b></td>
@@ -372,6 +394,13 @@
     $("#goalSummary").innerHTML =
       `<div class="gsum-total"><span class="k">全曲を${target}%にしたときの伸びしろ</span><span class="v">+${f2(total)}</span></div>` +
       keys.map((k) => `<div class="gsum"><span class="${tagClass(k)} chip-tag">${esc(k || "未分類")}</span><span>${groups.get(k).n}曲</span><span class="gain">+${f2(groups.get(k).pot)}</span></div>`).join("");
+  }
+
+  function renderDataState() {
+    const broken = entries.filter((e) => !(Number(e.level) > 0)).length;
+    $("#brokenNote").hidden = !broken || isSample;
+    $("#brokenNote").textContent = broken ? `レベルが入っていない譜面が ${broken} 件あります（スキル 0 として扱われます）。ブックマークレットでスキル対象曲を取り込み直すと直ります。` : "";
+    $("#undoBtn").disabled = !hasBackup();
   }
 
   function renderSuggest(a) {
@@ -613,10 +642,24 @@
     render();
     document.querySelector('.tabs button[data-tab="data"]').click();
   });
+  $("#undoBtn").addEventListener("click", () => {
+    let prev = null;
+    try { prev = JSON.parse(localStorage.getItem(KEY + ":undo") || "null"); } catch (_) {}
+    if (!Array.isArray(prev)) return toast("元に戻せる状態がありません");
+    confirmTap($("#undoBtn"), "直前の状態に戻す？もう一度押す", () => {
+      try { localStorage.removeItem(KEY + ":undo"); } catch (_) {}
+      isSample = false;
+      entries = sanitize(prev);
+      resetIds();
+      save();
+      render();
+      toast("直前の取り込みの前に戻しました");
+    });
+  });
   $("#clearBtn").addEventListener("click", () => {
     if (!entries.length) return;
     confirmTap($("#clearBtn"), "本当に全部削除？もう一度押す", () => {
-      leaveSample(); entries = []; save(); render(); toast("削除しました");
+      backup(); leaveSample(); entries = []; save(); render(); toast("削除しました");
     });
   });
 
