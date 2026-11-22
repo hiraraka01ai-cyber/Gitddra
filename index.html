@@ -27,6 +27,7 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="overview" class="active">概要</button>
+    <button role="tab" data-tab="goal">目標</button>
     <button role="tab" data-tab="scores">スコア</button>
     <button role="tab" data-tab="suggest">伸びしろ</button>
     <button role="tab" data-tab="calc">計算機</button>
@@ -73,6 +74,36 @@
           <h2 class="mt">傾向</h2>
           <ul id="insights" class="insights"></ul>
         </div>
+      </div>
+    </section>
+
+    <!-- 目標 -->
+    <section id="tab-goal" class="tab">
+      <div class="panel">
+        <div class="goal-controls">
+          <label>目標達成率<span class="inline-pct"><input id="goalTarget" type="number" step="0.5" min="1" max="100" inputmode="decimal" />%</span></label>
+          <label>枠
+            <select id="goalCat"><option value="both">HOT + OTHER</option><option value="HOT">HOT</option><option value="OTHER">OTHER</option></select>
+          </label>
+          <label>並び順
+            <select id="goalSort"><option value="tag">分類 → ポテンシャル</option><option value="pot">ポテンシャルが大きい順</option><option value="skill">スキル順</option></select>
+          </label>
+          <label class="check"><input type="checkbox" id="goalAll" /> 対象外の曲も表示</label>
+        </div>
+        <div id="goalSummary" class="goal-summary"></div>
+      </div>
+      <div class="panel">
+        <div class="table-wrap">
+          <table class="scores goal">
+            <thead><tr><th class="num">#</th><th>曲名</th><th class="num">レベル</th><th class="num">達成率</th><th class="num">スキル</th><th class="num" id="goalTargetHead">97%のスキル</th><th>分類</th><th class="num">ポテンシャル</th></tr></thead>
+            <tbody id="goalBody"></tbody>
+          </table>
+        </div>
+        <p class="hint"># はその枠の中でのスキル順位。ポテンシャル ＝ 目標達成率にしたときのスキル − 今のスキル（10 未満は青、10〜20 は緑、20 以上は赤）。分類は曲ごとに選べて、スコアと一緒に保存されます。</p>
+        <details class="tag-edit">
+          <summary>分類の候補を編集</summary>
+          <label>「、」区切りで入力（上から順に色が付きます）<input id="goalTags" type="text" /></label>
+        </details>
       </div>
     </section>
 

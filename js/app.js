@@ -15,6 +15,21 @@
   resetIds();
   let sortKey = "skill", sortAsc = false;
 
+  // 目標タブの設定（目標達成率・分類の候補・表示方法）
+  const DEFAULT_TAGS = ["フルコン狙い", "外したい", "完了", "許す", "挑戦曲"];
+  let settings = loadSettings();
+  function loadSettings() {
+    const d = { target: 97, tags: DEFAULT_TAGS.slice(), goalCat: "both", goalSort: "tag", goalAll: false };
+    try {
+      const v = JSON.parse(localStorage.getItem(KEY + ":settings") || "null");
+      return v && typeof v === "object" ? { ...d, ...v } : d;
+    } catch (_) { return d; }
+  }
+  function saveSettings() {
+    try { localStorage.setItem(KEY + ":settings", JSON.stringify(settings)); } catch (_) {}
+    if (!isSample) save(true);
+  }
+
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
@@ -33,9 +48,9 @@
     try {
       do {
         cloud.dirty = false;
-        const json = JSON.stringify(entries);
+        const json = JSON.stringify({ entries, settings });
         if (json === cloud.lastJSON) break;
-        await cloud.doc.set({ entries: JSON.parse(json), updatedAt: Date.now() });
+        await cloud.doc.set({ ...JSON.parse(json), updatedAt: Date.now() });
         cloud.lastJSON = json;
       } while (cloud.dirty);
       setSync("ok");
@@ -44,9 +59,9 @@
     } finally { cloud.writing = false; }
   }
   let saveTimer = null;
-  function save() {
-    if (isSample) return;
-    try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch (_) { /* 保存できない環境 */ }
+  function save(settingsOnly) {
+    if (isSample && !settingsOnly) return;
+    if (!isSample) { try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch (_) { /* 保存できない環境 */ } }
     if (cloud.doc) { setSync("saving"); clearTimeout(saveTimer); saveTimer = setTimeout(() => { saveTimer = null; cloudWrite(); }, 600); }
   }
   function setSync(state, msg) {
@@ -74,21 +89,22 @@
         const remote = data && Array.isArray(data.entries) ? data.entries : null;
         if (first) {
           first = false;
-          if (remote && remote.length) applyRemote(remote);
+          if (remote && remote.length) applyRemote(remote, data.settings);
           else if (!isSample && entries.length) cloudWrite(); // 既存のブラウザ保存分をクラウドへ
           setSync("ok");
           return;
         }
-        if (remote && !cloud.writing && !saveTimer && JSON.stringify(remote) !== JSON.stringify(entries)) applyRemote(remote);
+        if (remote && !cloud.writing && !saveTimer && JSON.stringify({ entries: remote, settings: data.settings || settings }) !== JSON.stringify({ entries, settings })) applyRemote(remote, data.settings);
       }, () => { clearTimeout(timer); setSync("err", "クラウドに接続できません（このブラウザには保存されます）"); });
     } catch (_) { /* クラウド無しで動作 */ }
   }
-  function applyRemote(list) {
+  function applyRemote(list, remoteSettings) {
     entries = list;
-    cloud.lastJSON = JSON.stringify(list);
+    if (remoteSettings && typeof remoteSettings === "object") settings = { ...settings, ...remoteSettings };
+    cloud.lastJSON = JSON.stringify({ entries, settings });
     isSample = false;
     resetIds();
-    try { localStorage.setItem(KEY, cloud.lastJSON); } catch (_) {}
+    try { localStorage.setItem(KEY, JSON.stringify(entries)); localStorage.setItem(KEY + ":settings", JSON.stringify(settings)); } catch (_) {}
     render();
   }
 
@@ -147,6 +163,7 @@
     const a = S.analyze(entries);
     renderHeader(a);
     renderOverview(a);
+    renderGoal(a);
     renderScores(a);
     renderSuggest(a);
     renderCalc(a);
@@ -268,6 +285,64 @@
         <td><button class="del" data-del="${c.id}" title="削除">✕</button></td>
       </tr>`).join("") || `<tr><td colspan="8" class="hint">該当なし</td></tr>`;
     document.querySelectorAll("#scoreBody select.inline").forEach((s) => (s.style.width = "auto"));
+  }
+
+  // ---------- 目標タブ ----------
+  const potClass = (p) => (p >= 20 ? "pot-hi" : p >= 10 ? "pot-mid" : "pot-lo");
+  function tagClass(tag) {
+    const i = settings.tags.indexOf(tag);
+    return tag ? "tg tg-" + (i < 0 ? "x" : i % 6) : "tg tg-none";
+  }
+  function renderGoal(a) {
+    const target = Math.min(100, Math.max(0, Number(settings.target) || 97));
+    $("#goalTarget").value = target;
+    $("#goalCat").value = settings.goalCat;
+    $("#goalSort").value = settings.goalSort;
+    $("#goalAll").checked = !!settings.goalAll;
+    $("#goalTags").value = settings.tags.join("、");
+    $("#goalTargetHead").textContent = target + "%のスキル";
+
+    const pick = (cat, hot) => (settings.goalAll ? cat.list : cat.counted).map((s, i) => ({ ...s, no: i + 1, catName: hot ? "HOT" : "OTHER" }));
+    let rows = [];
+    if (settings.goalCat !== "OTHER") rows = rows.concat(pick(a.hot, true));
+    if (settings.goalCat !== "HOT") rows = rows.concat(pick(a.other, false));
+    rows.forEach((r) => {
+      r.goalSkill = S.chartSkill(r.level, target);
+      r.pot = Math.round((r.goalSkill - r.skill) * 100) / 100;
+    });
+    const tagOrder = (t) => { const i = settings.tags.indexOf(t); return t ? (i < 0 ? 98 : i) : 99; };
+    if (settings.goalSort === "tag") rows.sort((x, y) => tagOrder(x.tag) - tagOrder(y.tag) || x.pot - y.pot);
+    else if (settings.goalSort === "pot") rows.sort((x, y) => y.pot - x.pot);
+    else rows.sort((x, y) => y.skill - x.skill);
+
+    const both = settings.goalCat === "both";
+    const tagOptions = (cur) => `<option value="">未分類</option>` + [...new Set(settings.tags.concat(cur && !settings.tags.includes(cur) ? [cur] : []))]
+      .map((t) => `<option value="${esc(t)}"${t === cur ? " selected" : ""}>${esc(t)}</option>`).join("");
+    $("#goalBody").innerHTML = rows.map((r) => `
+      <tr data-id="${r.id}" class="${r.counted ? "" : "dim"}">
+        <td class="num muted g-no">${r.no}</td>
+        <td class="song g-song" title="${esc(r.song)}">${esc(r.song)}${both ? ` <span class="tag ${r.hot ? "hot" : ""}">${r.catName}</span>` : ""}</td>
+        <td class="num g-lv" data-l="Lv">${f2(r.level)}</td>
+        <td class="num g-rate" data-l="達成率">${f2(r.rate)}% ${rankTag(r.rank)}</td>
+        <td class="num g-skill" data-l="スキル"><b>${f2(r.skill)}</b></td>
+        <td class="num g-goal" data-l="${target}%">${f2(r.goalSkill)}</td>
+        <td class="g-tag"><select class="${tagClass(r.tag)}" data-tag-for="${r.id}" aria-label="分類">${tagOptions(r.tag || "")}</select></td>
+        <td class="num g-pot"><span class="pot ${potClass(r.pot)}">${r.pot > 0 ? "+" : ""}${f2(r.pot)}</span></td>
+      </tr>`).join("") || `<tr><td colspan="8" class="hint">スキル対象曲がありません。「データ」タブから取り込んでください。</td></tr>`;
+
+    // 分類ごとの集計（伸びしろはプラスの分だけ合計）
+    const groups = new Map();
+    for (const r of rows) {
+      const k = r.tag || "";
+      const g = groups.get(k) || { n: 0, pot: 0 };
+      g.n++; g.pot += Math.max(0, r.pot);
+      groups.set(k, g);
+    }
+    const total = rows.reduce((s, r) => s + Math.max(0, r.pot), 0);
+    const keys = [...groups.keys()].sort((x, y) => tagOrder(x) - tagOrder(y));
+    $("#goalSummary").innerHTML =
+      `<div class="gsum-total"><span class="k">全曲を${target}%にしたときの伸びしろ</span><span class="v">+${f2(total)}</span></div>` +
+      keys.map((k) => `<div class="gsum"><span class="${tagClass(k)} chip-tag">${esc(k || "未分類")}</span><span>${groups.get(k).n}曲</span><span class="gain">+${f2(groups.get(k).pot)}</span></div>`).join("");
   }
 
   function renderSuggest(a) {
@@ -419,6 +494,32 @@
   });
 
   $("#stepInput").addEventListener("input", () => renderSuggest(S.analyze(entries)));
+
+  // 目標タブ
+  const goalSet = (k, v) => { settings[k] = v; saveSettings(); renderGoal(S.analyze(entries)); };
+  $("#goalTarget").addEventListener("change", (ev) => {
+    const v = parseFloat(ev.target.value);
+    if (v > 0 && v <= 100) goalSet("target", Math.round(v * 100) / 100); else { toast("目標達成率は 0〜100 で入力してください"); renderGoal(S.analyze(entries)); }
+  });
+  $("#goalCat").addEventListener("change", (ev) => goalSet("goalCat", ev.target.value));
+  $("#goalSort").addEventListener("change", (ev) => goalSet("goalSort", ev.target.value));
+  $("#goalAll").addEventListener("change", (ev) => goalSet("goalAll", ev.target.checked));
+  $("#goalTags").addEventListener("change", (ev) => {
+    const tags = ev.target.value.split(/[、,，\n]/).map((t) => t.trim()).filter(Boolean);
+    if (!tags.length) return toast("分類を1つ以上入力してください");
+    goalSet("tags", [...new Set(tags)]);
+    toast("分類の候補を更新しました");
+  });
+  $("#goalBody").addEventListener("change", (ev) => {
+    const id = ev.target.dataset.tagFor;
+    if (!id) return;
+    const e = entries.find((x) => x.id === Number(id));
+    if (!e) return;
+    if (isSample) isSample = false;
+    if (ev.target.value) e.tag = ev.target.value; else delete e.tag;
+    save();
+    render();
+  });
   ["#cLevel", "#cRate", "#rLevel", "#rSkill", "#tTarget"].forEach((s) => $(s).addEventListener("input", () => renderCalc(S.analyze(entries))));
 
   // データ
