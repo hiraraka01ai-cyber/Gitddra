@@ -555,7 +555,7 @@
     bS.setAttribute("style", btn + "background:#3ccf8e;color:#111;border:0;font-weight:700");
     bS.onclick = runSkill;
     $("dm-bm-mode").appendChild(bS);
-    if (canCrawl) {
+    if (canCrawl && opts.full) {
       var b1 = document.createElement("button");
       b1.textContent = "全曲を取得（初回用・十数分）";
       b1.setAttribute("style", btn + "background:transparent;color:#e8eaf0;border:1px solid #444");
